@@ -8,10 +8,12 @@
 <c>*****预处理LBP图</c>
 <l>rgb1_to_gray (Image, GrayImage3)</l>
 <l>pro_compute_LBP (GrayImage3, VarMap, ImageResultVap, LBPValue, InvCenter, TotalWeight, FinalSign, Width, Height)</l>
+<c>*****LBP图与方向图结合</c>
+<1>mult_image (LBPValue, FinalSign, SignLBP, 1, 0)</1>
 <l>dev_display (Image)</l>
 <l>gen_rectangle2 (Rectangle, Height/2, Width/2, 0, 200, 200)</l>
 <l>count_seconds (Seconds)</l>
-<l>copmute_LBP_his (Rectangle, ImageResultVap, LBPValue, FinalSign, TotalWeight, 2, Histogram1)</l>
+<l>copmute_LBP_his (Rectangle, ImageResultVap, SignLBP, FinalSign, TotalWeight, 2, Histogram1)</l>
 <l>count_seconds(Seconds1)</l>
 <l>time:=Seconds1-Seconds</l>
 </body>
