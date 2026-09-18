@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hdevelop file_version="1.2" halcon_version="20.05.0.1">
+<procedure name="pro_compute_LBP">
+<interface>
+<io>
+<par name="GrayImage3" base_type="iconic" dimension="0"/>
+</io>
+<oo>
+<par name="VarMap" base_type="iconic" dimension="0"/>
+<par name="ImageResultVap" base_type="iconic" dimension="0"/>
+<par name="LBPValue" base_type="iconic" dimension="0"/>
+<par name="InvCenter" base_type="iconic" dimension="0"/>
+<par name="TotalWeight" base_type="iconic" dimension="0"/>
+<par name="FinalSign" base_type="iconic" dimension="0"/>
+</oo>
+<oc>
+<par name="Width" base_type="ctrl" dimension="0"/>
+<par name="Height" base_type="ctrl" dimension="0"/>
+</oc>
+</interface>
+<body>
+<c>* ---------- 1. 预计算 2x2 方差图（不重叠块） ----------</c>
+<l>get_image_size (GrayImage3, Width, Height)</l>
+<l>deviation_image (GrayImage3, VarFull, 2, 2)</l>
+<l>zoom_image_factor (VarFull, VarMap, 0.5, 0.5, 'nearest_neighbor')</l>
+<c></c>
+<l>mult_image (VarMap, VarMap, ImageResultVap, 1, 0)</l>
+<l>convert_image_type (ImageResultVap, ImageResultVap, 'real')</l>
+<l>get_image_size (ImageResultVap, VarW, VarH)</l>
+<c>* ---------- 2. 预计算符号图 (final_sign) ----------</c>
+<l>Offsets := [[-1,-1], [-1,0], [-1,1], [0,1], [1,1], [1,0], [1,-1], [0,-1]]</l>
+<l>Epsilon := 1e-6</l>
+<c>* 初始化符号累加图</c>
+<l>gen_image_const (LBPValue, 'real', VarW, VarH)</l>
+<c></c>
+<l>gen_image_const (InvCenter, 'real', VarW, VarH)</l>
+<l>gen_image_proto (ImageResultVap, MultImage1, 1.0)</l>
+<l>div_image (MultImage1, ImageResultVap, InvCenter, 1.0, 0)</l>
+<c>* 遍历 8 个方向</c>
+<c>* 逐像素计算 LBP 值（只循环一次，图像尺寸已减半）</c>
+<c>* 3. 预计算符号图 FinalSign 和权重图 TotalWeight ----------</c>
+<c>* 使用仿射变换实现平移</c>
+<l>gen_image_const (NetSign, 'real', VarW, VarH)</l>
+<l>gen_image_const (TotalWeight, 'real', VarW, VarH)</l>
+<c></c>
+<c>* 中心方差倒数图（用于权重计算） 上一步LBP时同时计算</c>
+<l>* gen_image_const (InvCenter, 'real', VarW, VarH)</l>
+<l>* for r := 0 to VarH-1 by 1</l>
+<l>*     for c := 0 to VarW-1 by 1</l>
+<l>*         get_grayval (VarMap, r, c, val)</l>
+<l>*         set_grayval (InvCenter, r, c, 1.0 / (val + Epsilon))</l>
+<l>*     endfor</l>
+<l>* endfor</l>
+<c>* 对每个方向进行平移</c>
+<l>for idx := 0 to 7 by 1</l>
+<l>    dr := Offsets[idx*2]</l>
+<l>    dc := Offsets[idx*2+1]</l>
+<c></c>
+<c>    * 创建平移变换矩阵</c>
+<l>    hom_mat2d_identity (HomMat2D)</l>
+<l>    hom_mat2d_translate (HomMat2D, dr, dc, HomMat2DTranslate)</l>
+<c></c>
+<c>    * 应用仿射变换，得到邻域方差图</c>
+<c>    * 超出边界的像素用 0 填充（'constant'），但方差图的最小值 &gt;0，所以0不会影响比较</c>
+<l>    affine_trans_image (ImageResultVap, Neighbor, HomMat2DTranslate, 'constant', 'false')</l>
+<c></c>
+<c>    * 比较邻域 &gt; 中心 -&gt; 符号 +1，否则 -1</c>
+<l>    sub_image (Neighbor, ImageResultVap, Diff, 1, 0)</l>
+<l>    threshold (Diff, RegionPos, 1e-6, 255)</l>
+<l>    threshold (Diff, RegionNeg, -255, -1e-6)</l>
+<c></c>
+<l>    gen_image_const (SignImg, 'real', VarW, VarH)</l>
+<l>    paint_region (RegionPos, SignImg, SignImg, 1.0, 'fill')</l>
+<l>    paint_region (RegionNeg, SignImg, SignImg, -1.0, 'fill')</l>
+<l>    add_image (NetSign, SignImg, NetSign, 1, 0)</l>
+<c></c>
+<c>    * *****LBP标准</c>
+<l>    gen_image_const (lbpImg2, 'real', VarW, VarH)</l>
+<l>    paint_region (RegionPos, lbpImg2, lbpImg2, 1, 'fill')</l>
+<l>    paint_region (RegionNeg, lbpImg2, lbpImg2, 0, 'fill')</l>
+<c>    * **计算每一位的数值</c>
+<c>    * ****维权权重</c>
+<l>    bitSize := pow(2,idx)</l>
+<c>    * ****每位移一边计算领域的LBP</c>
+<l>    mult_image (lbpImg2, MultImage1, ImageWeigit, bitSize, 0)</l>
+<l>    add_image (LBPValue, ImageWeigit, LBPValue, 1, 0)</l>
+<c>    * 权重 = Neighbor * InvCenter</c>
+<l>    mult_image (Neighbor, InvCenter, Weight, 1, 0)</l>
+<l>    add_image (TotalWeight, Weight, TotalWeight, 1, 0)</l>
+<l>endfor</l>
+<c></c>
+<c>* 生成最终符号图（-1/0/1）</c>
+<l>gen_image_const (FinalSign, 'real', VarW, VarH)</l>
+<l>threshold (NetSign, RegionPos, 1e-6, 255)</l>
+<l>threshold (NetSign, RegionNeg, -255, -1e-6)</l>
+<l>paint_region (RegionPos, FinalSign, FinalSign, 1.0, 'fill')</l>
+<l>paint_region (RegionNeg, FinalSign, FinalSign, -1.0, 'fill')</l>
+<l>return ()</l>
+</body>
+<docu id="pro_compute_LBP">
+<parameters>
+<parameter id="FinalSign"/>
+<parameter id="GrayImage3"/>
+<parameter id="Height"/>
+<parameter id="ImageResultVap"/>
+<parameter id="InvCenter"/>
+<parameter id="LBPValue"/>
+<parameter id="TotalWeight"/>
+<parameter id="VarMap"/>
+<parameter id="Width"/>
+</parameters>
+</docu>
+</procedure>
+</hdevelop>

@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<hdevelop file_version="1.2" halcon_version="20.05.0.1">
+<procedure name="copmute_LBP_his">
+<interface>
+<io>
+<par name="Rectangle3" base_type="iconic" dimension="0"/>
+<par name="VarMap" base_type="iconic" dimension="0"/>
+<par name="LBPValue" base_type="iconic" dimension="0"/>
+<par name="FinalSign" base_type="iconic" dimension="0"/>
+<par name="TotalWeight" base_type="iconic" dimension="0"/>
+</io>
+<ic>
+<par name="method" base_type="ctrl" dimension="0"/>
+</ic>
+<oc>
+<par name="Histogram" base_type="ctrl" dimension="0"/>
+</oc>
+</interface>
+<body>
+<l>smallest_rectangle1 (Rectangle3, Row12, Column12, Row21, Column21)</l>
+<l>select_obj (VarMap, graylbpvap, 1)</l>
+<l>get_image_size (graylbpvap, VarW, VarH)</l>
+<l>R1 := Row12</l>
+<l>C1 := Column12</l>
+<l>R2 := Row21</l>
+<l>C2 := Column21</l>
+<c></c>
+<c>* 映射到方差图坐标（除以2）</c>
+<l>l1 := int(R1/2)</l>
+<l>r1 := max2(l1, 0)</l>
+<l>c1 := max2(int(C1/2), 0)</l>
+<l>r2 := min2(int(R2/2), VarH-1)</l>
+<l>c2 := min2(int(C2/2), VarW-1)</l>
+<l>gen_rectangle1 (RectangleROI, r1, c1, r2, c2)</l>
+<l>* select_obj (RectangleROI, ObjectSelected, 1)</l>
+<l>count_obj (RectangleROI, Number)</l>
+<l>N := Number</l>
+<l>Withs := c2-c1+1</l>
+<l>Heights := r2-r1+1</l>
+<l>sizeSAllROi := Withs*Heights</l>
+<l>sumss := sum(sizeSAllROi)</l>
+<c>* 初始化 511 维直方图</c>
+<l>select_obj (VarMap, graylbpvap, 1)</l>
+<l>select_obj (LBPValue, graylbp, 1)</l>
+<l>select_obj (TotalWeight, graylbpw, 1)</l>
+<c></c>
+<c></c>
+<l>if(method==1)</l>
+<c>    * *****正负两张图</c>
+<c></c>
+<l>    gen_image_const (ImageLBPPos, 'real', VarW, VarH)</l>
+<l>    gen_image_const (ImageLBPNeg, 'real', VarW, VarH)</l>
+<l>    threshold (graylbp, RegionLBP, 0, 1e+5)</l>
+<l>    reduce_domain (graylbp, RegionLBP, ImageReduced)</l>
+<l>    overpaint_gray (ImageLBPPos, ImageReduced)</l>
+<c></c>
+<l>    threshold (graylbp, Region, -255, -1)</l>
+<l>    reduce_domain (graylbp, Region, ImageReduced1)</l>
+<l>    overpaint_gray (ImageLBPNeg, ImageReduced1)</l>
+<l>    invert_image (ImageLBPNeg, ImageLBPNegInvert)</l>
+<c></c>
+<c>    * ***权重图</c>
+<l>    scale_image_max (graylbpw, ImageScaleMaxW)</l>
+<l>    count_seconds (Seconds3)</l>
+<l>    Histogram := []</l>
+<l>    singHistogram := []</l>
+<c></c>
+<l>    for Index2 := 1 to Number by 1</l>
+<l>    select_obj (RectangleROI, ObjectSelected1, Index2)</l>
+<l>    gray_histo_range (ObjectSelected1, ImageLBPNegInvert, 1, 255, 255, HistoNeg, BinSize)</l>
+<l>    gray_histo (ObjectSelected1, ImageLBPPos, AbsoluteHistopos, RelativeHisto)</l>
+<l>    gray_histo (ObjectSelected1, ImageScaleMaxW, AbsoluteHistoLBPW, RelativeHisto1)</l>
+<l>    singHistogram := []</l>
+<l>    singHistogram := [singHistogram,HistoNeg]</l>
+<l>    singHistogram := [singHistogram,AbsoluteHistopos]</l>
+<l>    singHistogram := [singHistogram,AbsoluteHistoLBPW]</l>
+<l>    Norm := 0.0</l>
+<l>*     for i := 0 to 766 by 1</l>
+<l>*         Norm := Norm + singHistogram[i] * singHistogram[i]+1e-4</l>
+<l>*     endfor</l>
+<l>    Norm := sum(pow(singHistogram,2))</l>
+<l>    Norm := sqrt(Norm)</l>
+<l>    singHistogram := singHistogram/(Norm*1.0)+1e-4</l>
+<l>*     if (Norm &gt; 1e-8)</l>
+<l>*         for i := 0 to 766 by 1</l>
+<l>*             singHistogram[i] := singHistogram[i] / Norm+1e-4</l>
+<l>*         endfor</l>
+<l>*     endif</l>
+<l>    Histogram := [Histogram,singHistogram]</l>
+<l>    endfor</l>
+<l>    sumHIstogram := singHistogram</l>
+<c></c>
+<c></c>
+<l>    count_seconds (Seconds4)</l>
+<l>    time := Seconds4-Seconds3</l>
+<l>else</l>
+<l>*return ()</l>
+<c>    * ******测试是否可以多区域生成</c>
+<c></c>
+<l>    gen_image_proto (graylbpvap, channelW1, 1)</l>
+<l>gen_image_proto (graylbpvap, channelW2, 1)</l>
+<l>    mult_image (graylbpw, channelW1, ImageResultW1LBP, 1, 0)</l>
+<c></c>
+<c></c>
+<c></c>
+<c>    * ****先循环不然所有obj reduce下来会少，若有重叠特备对于多尺度网络</c>
+<l>    Grayvaldir := []</l>
+<l>    GrayValW := []</l>
+<l>    for Index1 := 0 to N-1 by 1</l>
+<l>    select_obj (RectangleROI, ObjectSelected, Index1+1)</l>
+<l>    reduce_domain (graylbp, ObjectSelected, ImageReducedlbpdengji)</l>
+<l>    reduce_domain (graylbpw, ObjectSelected, ImageReducedWeight)</l>
+<c></c>
+<l>    get_region_points (ImageReducedlbpdengji, Rows, Columns)</l>
+<l>    get_grayval (ImageReducedlbpdengji, Rows, Columns, Grayval)</l>
+<l>    get_grayval (ImageReducedWeight, Rows, Columns, Grayval1)</l>
+<l>    Grayvaldir := [Grayvaldir,Grayval]</l>
+<l>    GrayValW := [GrayValW,Grayval1]</l>
+<l>    endfor</l>
+<c>    * ***先转正</c>
+<l>    tuple_gen_const (511*N, 0.0, Histogram)</l>
+<l>    count_seconds (Seconds1)</l>
+<l>    Grayval2 := Grayvaldir+255</l>
+<l>    for Index1 := 1 to N by 1</l>
+<l>    for Index := 0 to 510 by 1</l>
+<c>        * ***2方向图等级坐标+255变成数组</c>
+<c></c>
+<l>        tuple_find (Grayval2, Index, Indices)</l>
+<l>        if (Indices==-1)</l>
+<l>            Histogram[Index*N] := 0.0</l>
+<c></c>
+<l>        else</l>
+<c>            * ****1是权重 indices是等级坐标</c>
+<l>            testY := sum(sizeSAllROi[0:Index1-1])</l>
+<l>            tuple_less_elem (Indices, testY, Less)</l>
+<l>            testY2 := sum(sizeSAllROi[0:Index1-2])</l>
+<l>            tuple_length (testY2, Length)</l>
+<l>            if (Length==0)</l>
+<l>                tuple_greater_elem (Indices, -1, Greater)</l>
+<l>            else</l>
+<l>                tuple_greater_elem (Indices, testY2, Greater)</l>
+<l>            endif</l>
+<l>            tuple_find (Less, 1, Indices1)</l>
+<l>            tuple_find (Greater, 1, Indices2)</l>
+<l>            tuple_intersection (Indices1, Indices1, Intersection)</l>
+<l>            if (Intersection!=-1)</l>
+<l>                tuple_select (Indices, Intersection, Selected)</l>
+<l>                tuple_select (GrayValW, Selected, sumSame)</l>
+<l>                Histogram[Index*N] := sum(sumSame)</l>
+<l>            else</l>
+<l>                Histogram[Index*N] := 0.0</l>
+<l>            endif</l>
+<c></c>
+<l>        endif</l>
+<c></c>
+<c></c>
+<l>    endfor</l>
+<l>    endfor</l>
+<l>    count_seconds (Seconds2)</l>
+<l>    tt := Seconds2-Seconds1</l>
+<c></c>
+<c></c>
+<l>    count_seconds (Seconds)</l>
+<c>    * 遍历框内像素（在方差图上）</c>
+<l>*     for r := r1 to r2 by 1</l>
+<l>*     for c := c1 to c2 by 1</l>
+<l>*         get_grayval (graylbp, r, c, lbp_val)</l>
+<l>*         get_grayval (cblbpVapp, r, c, lbp_val2)</l>
+<c>        *             *get_grayval (crlbpVapp, r, c, lbp_val3)</c>
+<l>*         get_grayval (FinalSign, r, c, sign_val)</l>
+<l>*         get_grayval (SignLBP, r, c, signLbValue)</l>
+<l>*         get_grayval (ImageResultw2, r, c, weight_val)</l>
+<l>*         get_grayval (cblbpw, r, c, weight_val2)</l>
+<l>*         get_grayval (crlbpw, r, c, weight_val3)</l>
+<l>*         signed_lbp := sign_val * lbp_val</l>
+<l>*         idx := lbp_val + 255</l>
+<l>*         idx2 := lbp_val2 + 255</l>
+<l>*         idx3 := lbp_val3 + 255</l>
+<l>*         Histogram[idx] := Histogram[idx] + weight_val+1e-4</l>
+<l>*         Histogram2[idx2] := Histogram2[idx2] + weight_val2</l>
+<l>*         Histogram3[idx3] := Histogram3[idx3] + weight_val3</l>
+<l>*     endfor</l>
+<l>*     endfor</l>
+<l>    count_seconds (Seconds1)</l>
+<l>    ss := Seconds1-Seconds</l>
+<c>    * **0.5*Histogram+0.3*Histogram2+0.2*Histogram3</c>
+<l>    sumHIstogram := Histogram</l>
+<c>    * L2 归一化</c>
+<l>    Norm := 0.0</l>
+<l>    for i := 0 to 510 by 1</l>
+<l>    Norm := Norm + Histogram[i] * Histogram[i]+1e-4</l>
+<l>    endfor</l>
+<l>    Norm := sqrt(Norm)</l>
+<l>    if (Norm &gt; 1e-8)</l>
+<l>    for i := 0 to 510 by 1</l>
+<l>        Histogram[i] := Histogram[i] / Norm+1e-4</l>
+<l>    endfor</l>
+<l>endif</l>
+<c></c>
+<l>endif</l>
+<l>return ()</l>
+</body>
+<docu id="copmute_LBP_his">
+<parameters>
+<parameter id="FinalSign"/>
+<parameter id="Histogram"/>
+<parameter id="LBPValue"/>
+<parameter id="Rectangle3"/>
+<parameter id="TotalWeight"/>
+<parameter id="VarMap"/>
+<parameter id="method"/>
+</parameters>
+</docu>
+</procedure>
+</hdevelop>
