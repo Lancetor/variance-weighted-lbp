@@ -64,7 +64,7 @@
 <l>    count_seconds (Seconds3)</l>
 <l>    Histogram := []</l>
 <l>    singHistogram := []</l>
-<c></c>
+<c>    * ***灰度频数统计与权重分布统计3张图255+256+256=767</c>
 <l>    for Index2 := 1 to Number by 1</l>
 <l>    select_obj (RectangleROI, ObjectSelected1, Index2)</l>
 <l>    gray_histo_range (ObjectSelected1, ImageLBPNegInvert, 1, 255, 255, HistoNeg, BinSize)</l>
