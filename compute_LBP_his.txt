@@ -58,7 +58,7 @@ procedure copmute_lbp_his (Rectangle3, VarMap, LBPValue, FinalSign, TotalWeight:
   count_seconds (Seconds3)
   Histogram := []
   singHistogram := []
-
+  * ***灰度频数统计与权重分布统计3张图255+256+256=767
   for Index2 := 1 to Number by 1
       select_obj (RectangleROI, ObjectSelected1, Index2)
       gray_histo_range (ObjectSelected1, ImageLBPNegInvert, 1, 255, 255, HistoNeg, BinSize)
